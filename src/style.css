@@ -1,0 +1,17 @@
+div#sandsbtn{
+    display:flex;
+    justify-content: center;
+    align-items: center;
+    height:100px;
+}
+input[type="text"]
+{
+    width:200px;
+    height: 25px;
+}
+button{
+    height:30px;
+}
+button:hover{
+    background-color:aqua;
+}
