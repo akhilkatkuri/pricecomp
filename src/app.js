@@ -53,8 +53,12 @@ button.addEventListener('click',()=>{
             {
                 logo.src="../logos/amazlogo.png";
             }
+            if(data[i].Logo=='croma')
+            {
+                logo.src="../logos/cromaimg.png";
+            }
             logo.style.height="20px";
-            logo.style.height="20px";
+            logo.style.height="40px";
             idiv.appendChild(img);
             cdiv.appendChild(url);
             cdiv.appendChild(price1);

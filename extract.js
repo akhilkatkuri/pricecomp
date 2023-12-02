@@ -1,4 +1,5 @@
 const cheerio = require('cheerio');
+const puppeteer=require("puppeteer");
 const express=require('express');
 const cors=require('cors');
 const bodyparser=require('body-parser');
@@ -84,36 +85,120 @@ app.get('/',function(req,res){
           console.log(error);
         }
     }
+    async function getproductscroma()
+    {
+      try {
+        const browser = await puppeteer.launch({
+          headless: false,
+          args: ["--no-sandbox"],
+        });
+    
+        console.log("Browser launched");
+        const page = await browser.newPage();
+        console.log("Page opened");
+        const encodedSearchTerm = encodeURIComponent(productName);
+        const baseURL = 'https://www.croma.com/searchB?q=';
+        const parameter = 'relevance';
+        const fullURL = `${baseURL}${encodedSearchTerm}%3A${parameter}&text=${encodedSearchTerm}`;
+
+        await page.goto(fullURL, { waitUntil: "domcontentloaded" });
+        console.log("URL visited");
+    
+        await page.waitForSelector(".product-list");
+        console.log("Selector found");
+    
+        const allProducts = await page.evaluate(() => {
+          const tempProducts = document.querySelectorAll('.product-item');
+          let titles=[];
+          let urls=[];
+          let prices=[];
+          let imgurls=[];
+          tempProducts.forEach(tempProduct=>{
+              const temptitles=tempProduct.querySelectorAll('.product-info .product-title');
+              temptitles.forEach(temptitle=>{
+                titles.push(temptitle);
+              })
+              const tempurls=tempProduct.querySelectorAll('.product-info .product-title a');
+              tempurls.forEach(tempurl=>{
+                urls.push('https://www.croma.com'+tempurl.getAttribute('href'));
+              })
+              const tempprices=tempProduct.querySelectorAll('.product-info .new-price .amount');
+              tempprices.forEach(tempprice=>{
+                prices.push(tempprice);
+              })
+              const tempimgurls=tempProduct.querySelectorAll('.plp-card-thumbnail');
+              tempimgurls.forEach(tempimgurl=>{
+                const tempimgs=tempimgurl.querySelectorAll('img');
+                tempimgs.forEach(img=>{
+                  imgurls.push(img.getAttribute('data-src'));
+                })
+              })
+          })
+          prices=Array.from(prices).map(product => product.textContent);
+          titles=Array.from(titles).map(product => product.textContent);
+          res=[];
+          let n=prices.length;
+          for(let i=0;i<n;i++)
+          {
+            res.push({
+              Url:urls[i],
+              Price:prices[i],
+              Imgurl:imgurls[i],
+              Productname:titles[i],
+              Logo:"croma",
+    
+            })
+          }
+          return res;
+        });
+        console.log(allProducts.length)
+        await browser.close();
+        console.log("Browser closed");
+        return allProducts;
+      } catch (error) {
+        console.error("An error occurred:", error);
+      }
+    }
     async function getproducts(){
         let products=[];
+        // let amzprom=[];
         const flipprom=await getproductsflip();
-        const amzprom=await getproductsamaz();
+       const amzprom=await getproductsamaz();
+        const cromaprod=await getproductscroma();
+        console.log(cromaprod);
+        console.log(amzprom);
         const [flipprod,amazprod]=await Promise.all([flipprom,amzprom]);
-        let min=Math.min(flipprod.length,amazprod.length);
-        for(let i=0;i<min;i++)
-        {
-            products.push(flipprod[i]);
-            products.push(amazprod[i]);
-        }
-        if(flipprod.length===min)
-        {
-            for(let i=min;i<amazprod.length;i++)
-            {
-                products.push(amazprod[i]);
-            }
-        }
-        else
-        {
-            for(let i=min;i<flipprod.length;i++)
+        if(flipprod && amazprod){
+            let min=Math.min(flipprod.length,cromaprod.length);
+           
+            for(let i=0;i<min;i++)
             {
                 products.push(flipprod[i]);
+                products.push(amazprod[i]);
+                products.push(cromaprod[i]);
+                
             }
+            if(flipprod.length===min)
+            {
+                for(let i=min;i<amazprod.length;i++)
+                {
+                    products.push(amazprod[i]);
+                }
+            }
+            else
+            {
+                for(let i=min;i<flipprod.length;i++)
+                {
+                    products.push(flipprod[i]);
+                }
+            }
+            console.log(products);
+            res.json(products);
         }
-        console.log(products);
-        res.json(products);
     }
     getproducts();
 });
 app.listen(PORT,()=>{
+
     console.log(`server is running at port ${PORT}`);
 });
